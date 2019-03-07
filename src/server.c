@@ -117,19 +117,28 @@ int main(int argc, char *argv[]){
                 if (FD_ISSET(c_sockets[i], &read_set)){
                     memset(&buffer,0,BUFFLEN);
                     int r_len = recv(c_sockets[i],buffer,BUFFLEN,0);
-                    printf("Client sent: %s\n", buffer);
+                    if(buffer[0] == '/' && buffer[1] == 'x')
+                    {
+                        running = false;
+                        close(c_sockets[i]);
+                    }
+                    else
+                    {
+                        printf("Client sent: %s\n", buffer);
 
-                    int j;
-                    for (j = 0; j < MAXCLIENTS; j++){
-                        if (c_sockets[j] != -1){
-                            int w_len = send(c_sockets[j], buffer, r_len,0);
-                            printf("server sent: %s\n", buffer);
-                            if (w_len <= 0){
-                                close(c_sockets[j]);
-                                c_sockets[j] = -1;
+                        int j;
+                        for (j = 0; j < MAXCLIENTS; j++){
+                            if (c_sockets[j] != -1){
+                                int w_len = send(c_sockets[j], buffer, r_len,0);
+                                printf("server sent: %s\n", buffer);
+                                if (w_len <= 0){
+                                    close(c_sockets[j]);
+                                    c_sockets[j] = -1;
+                                }
                             }
                         }
                     }
+
                 }
             }
         }
