@@ -83,7 +83,10 @@ int main(int argc, char *argv[]){
     }
 
     FD_ZERO(&read_set);
+    int r_len;
     bool running = true;
+    int client_id;
+
     while (running){
 
         for (i = 0; i < MAXCLIENTS; i++){
@@ -103,38 +106,56 @@ int main(int argc, char *argv[]){
         select(maxfd+1, &read_set, NULL , NULL, NULL);
 
         if (FD_ISSET(l_socket, &read_set)){
-            int client_id = findemptyuser(c_sockets);
+            client_id = findemptyuser(c_sockets);
             if (client_id != -1){
                 clientaddrlen = sizeof(clientaddr);
                 memset(&clientaddr, 0, clientaddrlen);
                 c_sockets[client_id] = accept(l_socket,
                                               (struct sockaddr*)&clientaddr, &clientaddrlen);
-                printf("Connected:  %s\n",inet_ntoa(clientaddr.sin_addr));
+                printf("Connected:  %s, client %d\n",inet_ntoa(clientaddr.sin_addr), client_id);
+
+                if(client_id == 0)
+                    strcpy(buffer, "1");
+                else if(client_id == 1)
+                    strcpy(buffer, "2");
+                send(c_sockets[client_id], buffer, BUFFLEN,0);
+                printf("server sent: %s\n", buffer);
             }
         }
+
+
         for (i = 0; i < MAXCLIENTS; i++){
             if (c_sockets[i] != -1){
                 if (FD_ISSET(c_sockets[i], &read_set)){
+
                     memset(&buffer,0,BUFFLEN);
-                    int r_len = recv(c_sockets[i],buffer,BUFFLEN,0);
+                    if(client_id == 0)
+                    {
+                        r_len = recv(c_sockets[i],buffer,BUFFLEN,0);
+                        printf("Client sent: %s\n", buffer);
+                    }
+                    if(client_id == 1)
+                    {
+                        send(c_sockets[i-1], buffer, r_len,0);
+                        printf("server sent: %s\n", buffer);
+                    }
+
                     if(buffer[0] == '/' && buffer[1] == 'x')
                     {
                         running = false;
                         close(c_sockets[i]);
                     }
-                    else
-                    {
-                        printf("Client sent: %s\n", buffer);
 
-                        int j;
-                        for (j = 0; j < MAXCLIENTS; j++){
-                            if (c_sockets[j] != -1){
-                                int w_len = send(c_sockets[j], buffer, r_len,0);
-                                printf("server sent: %s\n", buffer);
-                                if (w_len <= 0){
-                                    close(c_sockets[j]);
-                                    c_sockets[j] = -1;
-                                }
+                    r_len = recv(c_sockets[i],buffer,BUFFLEN,0);
+                    printf("Client sent: %s\n", buffer);
+                    int j;
+                    for (j = 0; j < MAXCLIENTS; j++){
+                        if (c_sockets[j] != -1){
+                            int w_len = send(c_sockets[j], buffer, r_len,0);
+                            printf("server sent: %s\n", buffer);
+                            if (w_len <= 0){
+                                close(c_sockets[j]);
+                                c_sockets[j] = -1;
                             }
                         }
                     }
