@@ -13,7 +13,7 @@
 
 
 #define BUFFLEN 1024
-#define MAXCLIENTS 10
+#define MAXCLIENTS 2
 
 int findemptyuser(int c_sockets[]){
     int i;
@@ -24,7 +24,15 @@ int findemptyuser(int c_sockets[]){
     }
     return -1;
 }
+bool checkIfRunning(char buffer[], int c_sockets[],  int i)
+{
+    if (buffer[0] == '/' && buffer[1] == 'x') {
+        close(c_sockets[i]);
+        return false;
+    }
+    else return true;
 
+}
 int main(int argc, char *argv[]){
 #ifdef _WIN32
     WSADATA data;
@@ -40,8 +48,14 @@ int main(int argc, char *argv[]){
 
     int maxfd = 0;
     int i;
+    int client_id;
+    int w_len;
 
     char buffer[BUFFLEN];
+    char buffer1[BUFFLEN];
+    char buffer2[BUFFLEN];
+
+    bool running = true;
 
     if (argc != 2){
         fprintf(stderr, "USAGE: %s <port>\n", argv[0]);
@@ -84,8 +98,7 @@ int main(int argc, char *argv[]){
 
     FD_ZERO(&read_set);
     int r_len;
-    bool running = true;
-    int client_id;
+
 
     while (running){
 
@@ -119,45 +132,35 @@ int main(int argc, char *argv[]){
                 else if(client_id == 1)
                     strcpy(buffer, "2");
                 send(c_sockets[client_id], buffer, BUFFLEN,0);
-                printf("server sent: %s\n", buffer);
+                printf("server sent client id: %s\n", buffer);
             }
         }
 
-
         for (i = 0; i < MAXCLIENTS; i++){
             if (c_sockets[i] != -1){
-                if (FD_ISSET(c_sockets[i], &read_set)){
-
+                if (FD_ISSET(c_sockets[i], &read_set))
+                {
                     memset(&buffer,0,BUFFLEN);
-                    if(client_id == 0)
+                    if(i == 0)
+                    {
+                        //if(recv(c_sockets[i],buffer,BUFFLEN,0))
+                        r_len = recv(c_sockets[i],buffer,BUFFLEN,0);
+                        running = checkIfRunning(buffer, &c_sockets[i], i);
+                        printf("Client sent: %s\n", buffer);
+
+                        send(c_sockets[i+1], buffer, r_len,0);
+                        printf("server sent: %s\n", buffer);
+                        memset(&buffer,0,BUFFLEN);
+                    }
+                    if(i == 1)              //HMMMMMMMMMMM
                     {
                         r_len = recv(c_sockets[i],buffer,BUFFLEN,0);
+                        running = checkIfRunning(buffer, &c_sockets[i], i);
                         printf("Client sent: %s\n", buffer);
-                    }
-                    if(client_id == 1)
-                    {
-                        send(c_sockets[i-1], buffer, r_len,0);
+
+                        send(c_sockets[i - 1], buffer, r_len, 0);
                         printf("server sent: %s\n", buffer);
-                    }
-
-                    if(buffer[0] == '/' && buffer[1] == 'x')
-                    {
-                        running = false;
-                        close(c_sockets[i]);
-                    }
-
-                    r_len = recv(c_sockets[i],buffer,BUFFLEN,0);
-                    printf("Client sent: %s\n", buffer);
-                    int j;
-                    for (j = 0; j < MAXCLIENTS; j++){
-                        if (c_sockets[j] != -1){
-                            int w_len = send(c_sockets[j], buffer, r_len,0);
-                            printf("server sent: %s\n", buffer);
-                            if (w_len <= 0){
-                                close(c_sockets[j]);
-                                c_sockets[j] = -1;
-                            }
-                        }
+                        memset(&buffer, 0, BUFFLEN);
                     }
 
                 }
