@@ -24,14 +24,15 @@ int findemptyuser(int c_sockets[]){
     }
     return -1;
 }
-bool checkIfRunning(char buffer[], int c_sockets[],  int i)
+void checkIfRunning(int r_len, int c_sockets[])
 {
-    if (buffer[0] == '/' && buffer[1] == 'x') {
-        close(c_sockets[i]);
-        return false;
+    int j;
+    for (j = 0; j < MAXCLIENTS; j++){
+        if (r_len <= 0){
+            close(c_sockets[j]);
+            c_sockets[j] = -1;
+        }
     }
-    else return true;
-
 }
 int main(int argc, char *argv[]){
 #ifdef _WIN32
@@ -49,11 +50,8 @@ int main(int argc, char *argv[]){
     int maxfd = 0;
     int i;
     int client_id;
-    int w_len;
 
     char buffer[BUFFLEN];
-    char buffer1[BUFFLEN];
-    char buffer2[BUFFLEN];
 
     bool running = true;
 
@@ -132,7 +130,6 @@ int main(int argc, char *argv[]){
                 else if(client_id == 1)
                     strcpy(buffer, "2");
                 send(c_sockets[client_id], buffer, BUFFLEN,0);
-                printf("server sent client id: %s\n", buffer);
             }
         }
 
@@ -141,28 +138,19 @@ int main(int argc, char *argv[]){
                 if (FD_ISSET(c_sockets[i], &read_set))
                 {
                     memset(&buffer,0,BUFFLEN);
+                    r_len = recv(c_sockets[i],buffer,BUFFLEN,0);
+                    checkIfRunning(r_len, &c_sockets[i]);
+                    printf("Client sent: %s\n", buffer);
                     if(i == 0)
                     {
-                        //if(recv(c_sockets[i],buffer,BUFFLEN,0))
-                        r_len = recv(c_sockets[i],buffer,BUFFLEN,0);
-                        running = checkIfRunning(buffer, &c_sockets[i], i);
-                        printf("Client sent: %s\n", buffer);
-
-                        send(c_sockets[i+1], buffer, r_len,0);
-                        printf("server sent: %s\n", buffer);
-                        memset(&buffer,0,BUFFLEN);
+                        send(c_sockets[i +1 ], buffer, r_len,0);
                     }
-                    if(i == 1)              //HMMMMMMMMMMM
+                    if(i == 1)
                     {
-                        r_len = recv(c_sockets[i],buffer,BUFFLEN,0);
-                        running = checkIfRunning(buffer, &c_sockets[i], i);
-                        printf("Client sent: %s\n", buffer);
-
                         send(c_sockets[i - 1], buffer, r_len, 0);
-                        printf("server sent: %s\n", buffer);
-                        memset(&buffer, 0, BUFFLEN);
                     }
-
+                    printf("server sent: %s\n", buffer);
+                    memset(&buffer,0,BUFFLEN);
                 }
             }
         }
